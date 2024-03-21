@@ -1,0 +1,9 @@
+C - 5 - 4
+M - 1 - 0
+M - 3 - 1
+M - 4 - 1
+T - 0 - 3 - 2
+T - 1 - 3 - 4
+A - Lara - 1 - 1 - S - AADADAGG
+B - Bern - 4 - 3 - N - AADAGGAD
+C - Oslo - 2 - 3 - W - ADAGAGAG
