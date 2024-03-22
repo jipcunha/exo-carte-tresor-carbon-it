@@ -4,13 +4,12 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,39 +32,55 @@ class CarteTresorTest {
     private CarteTresor carteTresor = new CarteTresor();
     
     @Test
-    void parseFile_shouldCreateObjectListFromFile() throws IOException {
-        File file = getFileFromRessource("/debut.txt", "test.txt");
-        List<Pair<String, Object>> objects = carteTresor.parseFile(file);
-        var carte = new Carte(3, 4);
+    void parseFile_shouldInjectListsWithValuesFromFile() throws IOException {
+        List<String> allLines = carteTresor.parseFile("debut.txt");
+        
+        assertThat(carteTresor.carte, is(new Carte(3, 4)));
         var tresor1 = new Tresor(0, 3, 2);
         var tresor2 = new Tresor(1, 3, 3);
+        assertThat(carteTresor.tresors.getSecond(), contains(tresor1, tresor2));
+        var m1 = new Montagne(1, 0);
+        var m2 = new Montagne(2, 1);
+        assertThat(carteTresor.montagnes.getSecond(), contains(m1, m2));
         var a1 = new Aventurier("Lara", 1, 1, "S", "AADADAGGA");
-        assertThat(objects, contains(carte, tresor1, tresor2, a1));
+        assertThat(carteTresor.aventuriers.getSecond(), contains(a1));
+        assertThat(allLines, contains("C - 3 - 4", 
+        		"M - 1 - 0",
+    			"M - 2 - 1",
+        		"T - 0 - 3 - 2",
+        		"T - 1 - 3 - 3",
+        		"A - Lara - 1 - 1 - S - AADADAGGA"));
     }
     
-    @ParameterizedTest 
-    @ValueSource(strings = {"A", "D"})
-    void action_shouldReturnNewPositionsOfPlayersAndNumberOfTresors(String action) {
+    @Test 
+    void action_shouldReturnNewPositionsOfPlayersAndNumberOfTresors_playerLara() {
         var carte = new Carte(3, 4);
-        List<Tresor> t = Arrays.asList(new Tresor(0, 3, 2), new Tresor(1, 3, 3));
-        List<Montagne> m = Arrays.asList(new Montagne(1, 0), new Montagne(3, 1));
+        Set<Tresor> t = Stream.of(new Tresor(0, 3, 2), new Tresor(1, 3, 3)).collect(Collectors.toSet());
+        Set<Montagne> m = Stream.of(new Montagne(1, 0), new Montagne(3, 1)).collect(Collectors.toSet());
         Aventurier lara = new Aventurier("Lara", 0, 2, "S", "AA");
         Aventurier bern =  new Aventurier("Bern", 3, 2, "N", "DA");
-        List<Aventurier> a = Arrays.asList(lara, bern);
-        Pair<List<Tresor>, List<Aventurier>> result = carteTresor.action(action, lara, carte, m, t, a);
+        Set<Aventurier> a = Stream.of(lara, bern).collect(Collectors.toSet());
         
-        switch (action) {
-            case "A" -> {
-                assertThat(result.getFirst(), contains(new Tresor(0, 3, 1), new Tresor(1, 3, 3)));
-                Aventurier newLara = new Aventurier("Lara", 0, 3, "S", "AA");
-                assertThat(result.getSecond(), contains(newLara, bern));
-            }
-            case "D" -> {
-                assertThat(result.getFirst(), contains(new Tresor(0, 3, 2), new Tresor(1, 3, 3)));
-                Aventurier newBern =  new Aventurier("Bern", 3, 2, "E", "DA");
-                assertThat(result.getSecond(), contains(lara, newBern));
-            }
-        }
+        Pair<Set<Tresor>, Set<Aventurier>> result = carteTresor.action("A", lara, carte, m, t, a);
+        assertThat(result.getFirst(), contains(new Tresor(0, 3, 1), new Tresor(1, 3, 3)));
+        Aventurier newLara = new Aventurier("Lara", 0, 3, "S", "AA");
+        assertThat(result.getSecond(), contains(newLara, bern));
+        
+    }
+    
+    @Test 
+    void action_shouldReturnNewPositionsOfPlayersAndNumberOfTresors_playerBern() {
+        var carte = new Carte(3, 4);
+        Set<Tresor> t = Stream.of(new Tresor(0, 3, 2), new Tresor(1, 3, 3)).collect(Collectors.toSet());
+        Set<Montagne> m = Stream.of(new Montagne(1, 0), new Montagne(3, 1)).collect(Collectors.toSet());
+        Aventurier lara = new Aventurier("Lara", 0, 2, "S", "AA");
+        Aventurier bern =  new Aventurier("Bern", 3, 2, "N", "DA");
+        Set<Aventurier> a = Stream.of(lara, bern).collect(Collectors.toSet());
+        
+        Pair<Set<Tresor>, Set<Aventurier>> result2 = carteTresor.action("D", bern, carte, m, t, a);
+        assertThat(result2.getFirst(), contains(new Tresor(0, 3, 2), new Tresor(1, 3, 3)));
+        Aventurier newBern =  new Aventurier("Bern", 3, 2, "E", "DA");
+        assertThat(result2.getSecond(), contains(lara, newBern));
         
     }
     
@@ -80,10 +95,4 @@ class CarteTresorTest {
         }
     }
   
-    private File getFileFromRessource(String path, String fileName) throws IOException {
-        InputStream initialStream = this.getClass().getResourceAsStream(path);
-        Path file = Files.createFile(testFolder.resolve(fileName));
-        //IOUtils.closeQuietly(initialStream);
-        return file.toFile();
-    }
 }
