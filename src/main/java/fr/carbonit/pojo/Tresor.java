@@ -1,4 +1,4 @@
-package fr.carbonit;
+package fr.carbonit.pojo;
 
 import java.util.Objects;
 

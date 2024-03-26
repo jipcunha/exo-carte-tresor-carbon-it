@@ -8,22 +8,26 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.opengamma.strata.collect.tuple.Pair;
 
+import fr.carbonit.pojo.Aventurier;
+import fr.carbonit.pojo.Montagne;
+import fr.carbonit.pojo.Tresor;
+
 public class CarteTresor {
 
 	Carte carte;
-	Set<Montagne> montagnes = new LinkedHashSet<>();
-	Set<Tresor> tresors = new LinkedHashSet<>();
-	Set<Aventurier> aventuriers = new LinkedHashSet<>();
-	Pair<Set<Tresor>, Set<Aventurier>> infosTresorsJoueurs;
+	List<Montagne> montagnes = new ArrayList<>();
+	List<Tresor> tresors = new ArrayList<>();
+	List<Aventurier> aventuriers = new ArrayList<>();
+	Pair<List<Tresor>, List<Aventurier>> infosTresorsJoueurs;
 	List<String> linesCarteAndMontagnes = new ArrayList<>();
+	int ordreFichier = -1;
+	List<Aventurier> playersInGame = new ArrayList<>();
 
 	public List<String> parseFile(String fileName) throws IOException {
 		ClassLoader classloader = Thread.currentThread().getContextClassLoader();
@@ -38,7 +42,6 @@ public class CarteTresor {
 		allLines.stream().forEach(line -> {
 			if (!line.substring(0, 0).equals("#")) {
 				String[] parts = line.split(" - ");
-				int ordreFichier = 0;
 				switch (parts[0]) {
 					case "C" -> {
 						carte = new Carte(Integer.valueOf(parts[1]), Integer.valueOf(parts[2]));
@@ -50,35 +53,42 @@ public class CarteTresor {
 					}
 					case "T" -> tresors.add(new Tresor(Integer.valueOf(parts[1]), Integer.valueOf(parts[2]), Integer.valueOf(parts[3])));
 					case "A" -> {
+						ordreFichier++;
 						aventuriers.add(new Aventurier(parts[1], Integer.valueOf(parts[2]), Integer.valueOf(parts[3]),
 								parts[4], parts[5], 0, ordreFichier));
-						ordreFichier++;
 					}
+					default -> throw new IllegalArgumentException();
 				}
 			}
 		});
 		return allLines;
 	}
 
-	public Pair<Set<Tresor>, Set<Aventurier>> partieCarteTresor() {
+	public Pair<List<Tresor>, List<Aventurier>> partieCarteTresor() {
 		List<Integer> tours = aventuriers.stream().map(joueur -> joueur.parcours().length()).toList();
 		int nbTours = Collections.min(tours);
 
+		playersInGame = aventuriers;
 		for (int i = 0; i <= nbTours; i++) {
 			int nbTour = i;
-			aventuriers.stream().forEach(joueur -> {
-				String action = joueur.parcours().substring(nbTour, nbTour);
+			if (i == nbTours) {
+				return infosTresorsJoueurs;
+			}
+			List<Aventurier> players = new ArrayList<>(playersInGame);
+			players.stream().forEach(joueur -> {
+				String action = joueur.parcours().substring(nbTour, nbTour + 1);
 				infosTresorsJoueurs = action(action, joueur);
-
+				playersInGame = infosTresorsJoueurs.getSecond();
 			});
 		}
 		return infosTresorsJoueurs;
 	}
 
-	public Pair<Set<Tresor>, Set<Aventurier>> action(String action, Aventurier joueurDebut) {
+	public Pair<List<Tresor>, List<Aventurier>> action(String action, Aventurier joueurDebut) {
 		Aventurier joueur = mapActionByOrientation(joueurDebut, action);
-		// check limites
-		if (joueur.x() < 0 || joueur.x() > carte.largeurX() || joueur.y() < 0 || joueur.y() > carte.hauteurY()) {
+		//check limites
+		var hitLimit = joueur.x() < 0 || joueur.x() > carte.largeurX() || joueur.y() < 0 || joueur.y() > carte.hauteurY();
+		if (hitLimit) {
 			return Pair.of(tresors, aventuriers);
 		}
 		// check collision montagne
@@ -88,28 +98,53 @@ public class CarteTresor {
 			}
 		}
 
+		//check position : si pareille mais orientation diff alors changer uniquement l'orientation et return
+		var samePosition = joueur.x() == joueurDebut.x() && joueur.y() == joueurDebut.y() && !joueurDebut.orientation().equals(joueur.orientation());
+		if (samePosition) {
+			//retourner joueur sans retirer de tresor
+			joueur = new Aventurier(joueur.nom(), joueur.x(), joueur.y(), joueur.orientation(), joueur.parcours(),
+					joueurDebut.nbTresors(), joueur.ordre());
+			List<Aventurier> newList = aventuriers;
+			List<Aventurier> playersToRemove = new ArrayList<>();
+			for (Aventurier a : aventuriers) { // TODO stream filter findFirst ?
+				if (a.nom().equalsIgnoreCase(joueur.nom())) {
+					playersToRemove.add(a);
+				}
+			}
+			newList.removeAll(playersToRemove);
+			newList.add(joueur);
+			List<Aventurier> orderedListByAdvOrder = new ArrayList<>();
+			newList.stream().sorted(Comparator.comparing(Aventurier::ordre)).forEach(adv -> orderedListByAdvOrder.add(adv));
+			return Pair.of(tresors, orderedListByAdvOrder);
+		}
 		// modifier nb tresors
 		for (Tresor tresor : tresors) {
-			if (tresor.getX() == joueur.x() && tresor.getY() == joueur.y() && tresor.nbTresors > 0) {
+			var positionActuelleEgaleATresor = tresor.getX() == joueur.x() && tresor.getY() == joueur.y();
+			if (positionActuelleEgaleATresor && tresor.getNbTresors() > 0) {
 				tresor.setNbTresors(tresor.getNbTresors() - 1);
 				// calcul nb tresor joueur
 				joueur = new Aventurier(joueur.nom(), joueur.x(), joueur.y(), joueur.orientation(), joueur.parcours(),
 						joueur.nbTresors() + 1, joueur.ordre());
 			}
 		}
-		Set<Aventurier> newSet = aventuriers;
+		//maj liste des joueurs avec nouvelles positions, orientation et tresors recoltés
+		List<Aventurier> newList = aventuriers;
 		if (!joueurDebut.equals(joueur)) {
+			List<Aventurier> newListToMaj = aventuriers;
+			List<Aventurier> newPlayersToRemove = new ArrayList<>();
 			// retirer le joueur ancien + rajouter = maj si le joueur a changé
-			for (Aventurier a : new ArrayList<>(aventuriers)) {
+			for (Aventurier a : aventuriers) {
 				if (a.nom().equalsIgnoreCase(joueur.nom())) {
-					aventuriers.remove(a);
+					newPlayersToRemove.add(a);
 				}
 			}
-			newSet.add(joueur);
+			newListToMaj.removeAll(newPlayersToRemove);
+			newListToMaj.add(joueur);
+			newList = newListToMaj;
 		}
-		Set<Aventurier> orderedSet = new LinkedHashSet<Aventurier>();
-		newSet.stream().sorted(Comparator.comparing(Aventurier::ordre)).forEach(adv -> orderedSet.add(adv));
-		return Pair.of(tresors, orderedSet);
+		List<Aventurier> orderedListByAdvOrder = new ArrayList<>();
+		newList.stream().sorted(Comparator.comparing(Aventurier::ordre)).forEach(adv -> orderedListByAdvOrder.add(adv));
+		return Pair.of(tresors, orderedListByAdvOrder);
 	}
 
 	public Aventurier mapActionByOrientation(Aventurier a, String action) {
@@ -123,8 +158,7 @@ public class CarteTresor {
 				newPosition = new Aventurier(a.nom(), a.x(), a.y(), "W", a.parcours(), a.nbTresors(), a.ordre());
 			case "G" ->
 				newPosition = new Aventurier(a.nom(), a.x(), a.y(), "E", a.parcours(), a.nbTresors(), a.ordre());
-			}
-			;
+			};
 			return newPosition;
 		case "N":
 			switch (action) {
@@ -202,7 +236,7 @@ public class CarteTresor {
 					if (t.getX() == index && t.getY() == indexJ) {
 						var stringNrTresors = String.valueOf(t.getNbTresors());
 						var spacesToAdd = espacesMax - stringNrTresors.length() - 2; //2 parentheses
-						matrice[index][indexJ] = "T(" + t.nbTresors + ")" + StringUtils.repeat(" ", spacesToAdd);
+						matrice[index][indexJ] = "T(" + t.getNbTresors() + ")" + StringUtils.repeat(" ", spacesToAdd);
 					}
 				});
 				aventuriers.stream().forEach(a -> {

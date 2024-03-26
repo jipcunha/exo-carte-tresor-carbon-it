@@ -11,6 +11,8 @@ public class Application {
     	instance.parseFile(args[0]);
     	//partie
     	instance.partieCarteTresor();
+    	//creation fichier
+    	instance.createFile("final_partie.txt");
     }
 
 }

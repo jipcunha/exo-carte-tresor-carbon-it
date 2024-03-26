@@ -5,4 +5,4 @@ M - 4 - 1
 T - 0 - 3 - 2
 T - 1 - 3 - 4
 A - Lara - 1 - 1 - S - AADADAGG
-B - Bern - 4 - 3 - N - AADAGGAD
+A - Bern - 3 - 3 - N - AADAGGAD
