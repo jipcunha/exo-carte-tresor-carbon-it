@@ -57,14 +57,14 @@ class CarteTresorTest {
         var m1 = new Montagne(1, 0);
         var m2 = new Montagne(2, 1);
         assertThat(carteTresor.montagnes, contains(m1, m2));
-        var a1 = new Aventurier("Lara", 1, 1, "S", "AADADAGGA", 0, 0);
+        var a1 = new Aventurier("Lara", 1, 1, "S", "AADADAGG", 0, 0);
         assertThat(carteTresor.aventuriers, contains(a1));
         assertThat(allLines, contains("C - 3 - 4", 
         		"M - 1 - 0",
     			"M - 2 - 1",
         		"T - 0 - 3 - 2",
         		"T - 1 - 3 - 3",
-        		"A - Lara - 1 - 1 - S - AADADAGGA"));
+        		"A - Lara - 1 - 1 - S - AADADAGG"));
         assertThat(carteTresor.linesCarteAndMontagnes, contains("C - 3 - 4", 
         		"M - 1 - 0",
     			"M - 2 - 1"));
@@ -73,11 +73,11 @@ class CarteTresorTest {
     @Test 
     void action_shouldReturnNewPositionsOfPlayersAndNumberOfTresors_playerLara() throws Exception {
     	setupParameters_debut();
-    	Aventurier lara = carteTresor.aventuriers.get(0);
+    	Aventurier lara = new Aventurier("Lara", 1, 1, "S", "AADADAGG", 0, 0);
         
         Pair<List<Tresor>, List<Aventurier>> result = carteTresor.action("A", lara);
         assertThat(result.getFirst(), contains(new Tresor(0, 3, 2), new Tresor(1, 3, 3)));
-        Aventurier newLara = new Aventurier("Lara", 1, 2, "S", "AADADAGGA", 0, 0);
+        Aventurier newLara = new Aventurier("Lara", 1, 2, "S", "AADADAGG", 0, 0);
         assertThat(result.getSecond(), contains(newLara));
     }
     
@@ -137,12 +137,13 @@ class CarteTresorTest {
     
     @Test
     void createFile_shouldCreateFileAfterPlay() throws Exception {
-    	setupParameters_twoPlayers();
+    	carteTresor.parseFile("debut2.txt");
+    	carteTresor.partieCarteTresor();
     	carteTresor.createFile(fileName);
     	//le fichier apparaitra dans /src/main/resources
-    	//InputStream expected = getClass().getClassLoader().getResourceAsStream("expected_create.txt");
-    	//InputStream result = getClass().getClassLoader().getResourceAsStream("final.txt");
-    	//assertThat(expected.equals(result), is(true)); matrice imprimée en 1 seule colonne
+    	/*InputStream expected = getClass().getClassLoader().getResourceAsStream("expected_create.txt");
+    	InputStream result = getClass().getClassLoader().getResourceAsStream("final.txt");
+    	assertThat(expected.equals(result), is(true)); // matrice imprimée en 1 seule colonne */
     }
     
     @Test
